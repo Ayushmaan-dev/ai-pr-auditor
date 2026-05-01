@@ -48,7 +48,8 @@ export default [
             '__fixtures__/*.ts',
             'eslint.config.mjs',
             'vitest.config.ts',
-            'rollup.config.ts'
+            'rollup.config.ts',
+            'script/normalize.js'
           ]
         },
         tsconfigRootDir: import.meta.dirname

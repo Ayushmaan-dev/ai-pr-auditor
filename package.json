@@ -23,7 +23,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "bundle": "npm run format:write && npm run package && node -e \"const fs=require('fs'); ['dist/index.js', 'dist/index.js.map'].forEach(f => { if(fs.existsSync(f)) { const c=fs.readFileSync(f,'utf8'); fs.writeFileSync(f, c.replace(/\\r\\n/g, '\\n'), 'utf8'); } })\"",
+    "bundle": "npm run format:write && npm run package && node script/normalize.js",
     "ci-test": "vitest run",
     "coverage": "npx make-coverage-badge --output-path ./badges/coverage.svg",
     "format:write": "npx prettier --write .",
