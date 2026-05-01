@@ -1,6 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "types": ["jest", "node"],
     "allowSyntheticDefaultImports": true,
     "declaration": false,
     "declarationMap": false,
@@ -15,12 +16,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "outDir": "./dist",
+    "rootDir": ".",
     "pretty": true,
     "resolveJsonModule": true,
     "strict": true,
     "strictNullChecks": true,
     "target": "ES2022"
   },
-  "exclude": ["__fixtures__", "__tests__", "coverage", "dist", "node_modules"],
-  "include": ["src"]
+  "exclude": ["__fixtures__", "coverage", "dist", "node_modules"],
+  "include": ["src", "__tests__"]
 }
