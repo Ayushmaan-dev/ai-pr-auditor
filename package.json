@@ -37,7 +37,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^3.0.0"
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
+    "@google/generative-ai": "^0.24.1",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.2",

@@ -1,24 +1,16 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: 'AI PR Auditor'
+description: 'Automatically reviews Pull Requests using Google Gemini AI'
+author: 'Ayushmaan-dev'
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
-branding:
-  icon: heart
-  color: red
-
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
+  gemini-api-key:
+    description: 'Google Gemini API Key'
     required: true
-    default: '1000'
-
-# Define your outputs here.
-outputs:
-  time:
-    description: Your output description here
+  github-token:
+    description: 'GitHub Token for posting comments'
+    required: true
+    default: ${{ github.token }}
 
 runs:
-  using: node24
-  main: dist/index.js
+  using: 'node20'
+  main: 'dist/index.js'
