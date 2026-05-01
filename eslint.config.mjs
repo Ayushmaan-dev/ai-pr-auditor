@@ -46,10 +46,7 @@ export default [
         projectService: {
           allowDefaultProject: [
             '__fixtures__/*.ts',
-            '__tests__/*.ts',
             'eslint.config.mjs',
-            // Removed: jest.config.js (deleted)
-            // Added: vitest.config.ts (new test config)
             'vitest.config.ts',
             'rollup.config.ts'
           ]
