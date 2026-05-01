@@ -44,8 +44,8 @@ jobs:
         id: npm-ci-test
         run: npm run ci-test
 
-  test-action:
-    name: GitHub Actions Test
+  verify-dist:
+    name: Verify dist/ is up to date
     runs-on: ubuntu-latest
 
     steps:
@@ -53,12 +53,26 @@ jobs:
         id: checkout
         uses: actions/checkout@v6
 
-      - name: Test Local Action
-        id: test-action
-        uses: ./
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v6
         with:
-          milliseconds: 2000
+          node-version-file: .node-version
+          cache: npm
 
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+      - name: Install Dependencies
+        id: npm-ci
+        run: npm ci
+
+      - name: Build dist/
+        run: npm run bundle
+
+      - name: Check for uncommitted changes
+        # Fails if dist/index.js is out of sync with src/
+        # This ensures devs always commit the built output
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "dist/ is out of sync with src/. Run 'npm run bundle' and commit."
+            git diff
+            exit 1
+          fi
