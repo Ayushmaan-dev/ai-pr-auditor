@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { z } from 'zod'
 
 // --- Zod Schema ---
@@ -20,6 +20,34 @@ const ReviewSchema = z.object({
 })
 
 type Review = z.infer<typeof ReviewSchema>
+
+// Separated from the prompt so Gemini treats it as persistent
+// behavior instruction, not user input. Cleaner token usage.
+const SYSTEM_INSTRUCTION = `You are a Staff Engineer conducting a Pull Request review.
+
+You will receive a Git diff inside <diff> tags. Analyze only the code changes and return a single raw JSON object — no markdown, no explanation, no code fences.
+
+Focus on:
+1. SECURITY: Hardcoded secrets, API keys, tokens, SQL injection, XSS vectors
+2. PERFORMANCE: O(n²) loops, missing indexes, blocking operations, memory leaks
+3. DOCUMENTATION: Missing JSDoc on exported functions, unclear variable names
+4. DESIGN: Single Responsibility violations, deeply nested logic
+
+The JSON must follow this exact structure:
+{
+  "summary": "Brief overall summary of the PR changes",
+  "analyzedFiles": ["list", "of", "files", "you", "analyzed"],
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low",
+      "category": "security" | "performance" | "documentation" | "design",
+      "file": "filename where issue exists",
+      "description": "What the issue is",
+      "suggestion": "How to fix it"
+    }
+  ],
+  "approved": true | false
+}`
 
 // --- Filter noise from the diff ---
 function filterDiff(diff: string): string {
@@ -53,33 +81,14 @@ function filterDiff(diff: string): string {
 }
 
 // --- Build the prompt ---
+
+// Now only responsible for wrapping diff in XML tags.
+// XML delimiters give Gemini hard boundaries — it knows exactly
+// where instructions end and code data begins.
 function buildPrompt(diff: string): string {
-  return `You are a Staff Engineer conducting a Pull Request review. Analyze the following Git diff and return ONLY a valid JSON object — no markdown, no explanation, no code fences.
-
-The JSON must follow this exact structure:
-{
-  "summary": "Brief overall summary of the PR changes",
-  "analyzedFiles": ["list", "of", "files", "you", "analyzed"],
-  "issues": [
-    {
-      "severity": "critical" | "high" | "medium" | "low",
-      "category": "security" | "performance" | "documentation" | "design",
-      "file": "filename where issue exists",
-      "description": "What the issue is",
-      "suggestion": "How to fix it"
-    }
-  ],
-  "approved": true | false
-}
-
-Focus on:
-1. SECURITY: Hardcoded secrets, API keys, tokens, SQL injection, XSS vectors
-2. PERFORMANCE: O(n²) loops, missing indexes, blocking operations, memory leaks
-3. DOCUMENTATION: Missing JSDoc on exported functions, unclear variable names
-4. DESIGN: Single Responsibility violations, deeply nested logic
-
-Git Diff:
-${diff}`
+  return `<diff>
+${diff}
+</diff>`
 }
 
 // --- Format review as Markdown comment ---
@@ -201,18 +210,48 @@ export async function run(): Promise<void> {
 
     // Fix: hard truncation to prevent context window overflow
     const safeDiff =
-      filteredDiff.length > 60000
-        ? filteredDiff.substring(0, 60000) + '\n\n...[DIFF TRUNCATED FOR SIZE]'
+      filteredDiff.length > 500000
+        ? filteredDiff.substring(0, 500000) + '\n\n...[DIFF TRUNCATED FOR SIZE]'
         : filteredDiff
 
     core.info('Sending diff to Gemini...')
 
-    // Fix: enforce JSON response at API level, not just prompt level
+    // Initialize Gemini client with the API key from GitHub Secrets
     const genAI = new GoogleGenerativeAI(geminiApiKey)
+
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
+      systemInstruction: SYSTEM_INSTRUCTION,
       generationConfig: {
-        responseMimeType: 'application/json'
+        // Forces JSON at API level — no markdown fences possible
+        responseMimeType: 'application/json',
+        // Forces exact field names and types at model level
+        // Gemini cannot return wrong field names or wrong types
+        // Zod still validates as a second safety net
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            summary: { type: SchemaType.STRING },
+            analyzedFiles: {
+              type: SchemaType.ARRAY,
+              items: { type: SchemaType.STRING }
+            },
+            issues: {
+              type: SchemaType.ARRAY,
+              items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  severity: { type: SchemaType.STRING },
+                  category: { type: SchemaType.STRING },
+                  file: { type: SchemaType.STRING },
+                  description: { type: SchemaType.STRING },
+                  suggestion: { type: SchemaType.STRING }
+                }
+              }
+            },
+            approved: { type: SchemaType.BOOLEAN }
+          }
+        }
       }
     })
 
