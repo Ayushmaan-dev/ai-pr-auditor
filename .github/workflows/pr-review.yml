@@ -1,0 +1,38 @@
+name: AI PR Review
+
+# Trigger: fires whenever a PR is opened, updated, or reopened
+# 'synchronize' means a new commit was pushed to an existing PR
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Permissions this workflow needs:
+# contents: read — to fetch the diff
+# pull-requests: write — to post/update the review comment
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    name: AI Code Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        # Downloads your repo code onto the runner
+        # So it can access dist/index.js
+        uses: actions/checkout@v6
+
+      - name: Run AI PR Auditor
+        # 'uses: ./' means "run the Action defined in this repo"
+        # It reads action.yml, finds 'runs.main: dist/index.js'
+        # and executes it with Node.js
+        uses: ./
+        with:
+          # Pulls your Gemini API key from GitHub Secrets
+          # Never hardcode this — secrets are encrypted by GitHub
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          # GITHUB_TOKEN is automatically provided by GitHub Actions
+          # It gives the bot permission to post comments on the PR
+          github-token: ${{ secrets.GITHUB_TOKEN }}
