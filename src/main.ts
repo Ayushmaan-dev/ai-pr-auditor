@@ -220,7 +220,7 @@ export async function run(): Promise<void> {
     const genAI = new GoogleGenerativeAI(geminiApiKey)
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.0-flash',
       systemInstruction: SYSTEM_INSTRUCTION,
       generationConfig: {
         // Forces JSON at API level — no markdown fences possible
