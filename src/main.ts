@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
 
 // --- Zod Schema ---
@@ -23,31 +23,30 @@ type Review = z.infer<typeof ReviewSchema>
 
 // Separated from the prompt so Gemini treats it as persistent
 // behavior instruction, not user input. Cleaner token usage.
-const SYSTEM_INSTRUCTION = `You are a Staff Engineer conducting a Pull Request review.
+const SYSTEM_INSTRUCTION = `You are a Staff Engineer reviewing a Pull Request.
 
-You will receive a Git diff inside <diff> tags. Analyze only the code changes and return a single raw JSON object — no markdown, no explanation, no code fences.
+CRITICAL RULES:
+- Return ONLY a JSON object. Nothing else. No explanation. No markdown.
+- The "summary" field must be 1-2 sentences maximum. No more.
+- Be concise. Short answers only.
 
-Focus on:
-1. SECURITY: Hardcoded secrets, API keys, tokens, SQL injection, XSS vectors
-2. PERFORMANCE: O(n²) loops, missing indexes, blocking operations, memory leaks
-3. DOCUMENTATION: Missing JSDoc on exported functions, unclear variable names
-4. DESIGN: Single Responsibility violations, deeply nested logic
-
-The JSON must follow this exact structure:
+JSON structure (follow exactly):
 {
-  "summary": "Brief overall summary of the PR changes",
-  "analyzedFiles": ["list", "of", "files", "you", "analyzed"],
+  "summary": "One or two sentences max.",
+  "analyzedFiles": ["file1.ts", "file2.ts"],
   "issues": [
     {
-      "severity": "critical" | "high" | "medium" | "low",
-      "category": "security" | "performance" | "documentation" | "design",
-      "file": "filename where issue exists",
-      "description": "What the issue is",
-      "suggestion": "How to fix it"
+      "severity": "critical|high|medium|low",
+      "category": "security|performance|documentation|design",
+      "file": "filename",
+      "description": "One sentence.",
+      "suggestion": "One sentence."
     }
   ],
-  "approved": true | false
-}`
+  "approved": true
+}
+
+If no issues found, return empty array for issues and set approved to true.`
 
 // --- Filter noise from the diff ---
 function filterDiff(diff: string): string {
@@ -63,7 +62,13 @@ function filterDiff(diff: string): string {
     '.ttf',
     '.eot'
   ]
-  const ignoredFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
+  // const ignoredFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
+  const ignoredFiles = [
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'dist/index.js'
+  ]
   const ignoredDirs = ['dist/', 'build/', '.next/', 'node_modules/']
 
   const files = diff.split('diff --git')
@@ -220,44 +225,20 @@ export async function run(): Promise<void> {
     const genAI = new GoogleGenerativeAI(geminiApiKey)
 
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       systemInstruction: SYSTEM_INSTRUCTION,
       generationConfig: {
-        // Forces JSON at API level — no markdown fences possible
         responseMimeType: 'application/json',
-        // Forces exact field names and types at model level
-        // Gemini cannot return wrong field names or wrong types
-        // Zod still validates as a second safety net
-        responseSchema: {
-          type: SchemaType.OBJECT,
-          properties: {
-            summary: { type: SchemaType.STRING },
-            analyzedFiles: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING }
-            },
-            issues: {
-              type: SchemaType.ARRAY,
-              items: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  severity: { type: SchemaType.STRING },
-                  category: { type: SchemaType.STRING },
-                  file: { type: SchemaType.STRING },
-                  description: { type: SchemaType.STRING },
-                  suggestion: { type: SchemaType.STRING }
-                }
-              }
-            },
-            approved: { type: SchemaType.BOOLEAN }
-          }
-        }
+        maxOutputTokens: 1024
       }
     })
 
     const prompt = buildPrompt(safeDiff)
     const result = await model.generateContent(prompt)
     const responseText = result.response.text()
+
+    // Log raw response for debugging schema mismatch
+    core.info(`Raw Gemini response: ${responseText}`)
 
     // Fix: strip markdown fences if Gemini wraps response anyway
     const cleanJson = responseText
