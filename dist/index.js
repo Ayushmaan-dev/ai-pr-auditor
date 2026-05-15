@@ -66459,7 +66459,6 @@ function filterDiff(diff) {
         '.ttf',
         '.eot'
     ];
-    // const ignoredFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
     const ignoredFiles = [
         'package-lock.json',
         'yarn.lock',
@@ -66598,14 +66597,12 @@ async function run() {
             systemInstruction: SYSTEM_INSTRUCTION,
             generationConfig: {
                 responseMimeType: 'application/json',
-                maxOutputTokens: 1024
+                maxOutputTokens: 1500
             }
         });
         const prompt = buildPrompt(safeDiff);
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
-        // Log raw response for debugging schema mismatch
-        info(`Raw Gemini response: ${responseText}`);
         // Fix: strip markdown fences if Gemini wraps response anyway
         const cleanJson = responseText
             .replace(/```json/gi, '')
