@@ -66589,7 +66589,7 @@ async function run() {
         // Initialize Gemini client with the API key from GitHub Secrets
         const genAI = new GoogleGenerativeAI(geminiApiKey);
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-3-flash-preview',
             systemInstruction: SYSTEM_INSTRUCTION,
             generationConfig: {
                 // Forces JSON at API level — no markdown fences possible
