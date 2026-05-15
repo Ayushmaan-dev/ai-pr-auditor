@@ -66433,7 +66433,7 @@ Focus on:
 
 The JSON must follow this exact structure:
 {
-  "summary": "Brief overall summary of the PR changes",
+  "summary": "Brief overall summary of the PR changes in 3 lines or less",
   "analyzedFiles": ["list", "of", "files", "you", "analyzed"],
   "issues": [
     {
@@ -66597,6 +66597,7 @@ async function run() {
                 // Forces exact field names and types at model level
                 // Gemini cannot return wrong field names or wrong types
                 // Zod still validates as a second safety net
+                maxOutputTokens: 2048,
                 responseSchema: {
                     type: SchemaType.OBJECT,
                     properties: {
