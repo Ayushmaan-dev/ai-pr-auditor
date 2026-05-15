@@ -62,7 +62,13 @@ function filterDiff(diff: string): string {
     '.ttf',
     '.eot'
   ]
-  const ignoredFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
+  // const ignoredFiles = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']
+  const ignoredFiles = [
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'dist/index.js'
+  ]
   const ignoredDirs = ['dist/', 'build/', '.next/', 'node_modules/']
 
   const files = diff.split('diff --git')
