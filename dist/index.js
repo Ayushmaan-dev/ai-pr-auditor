@@ -66626,6 +66626,8 @@ async function run() {
         const prompt = buildPrompt(safeDiff);
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
+        // Log raw response for debugging schema mismatch
+        info(`Raw Gemini response: ${responseText}`);
         // Fix: strip markdown fences if Gemini wraps response anyway
         const cleanJson = responseText
             .replace(/```json/gi, '')
